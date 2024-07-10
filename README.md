@@ -71,3 +71,132 @@ ORDER BY f.flight_id, tf.fare_conditions;
 ```
 
 **Explicación**: Esta consulta calcula la tarifa promedio por vuelo y por clase de viaje en los últimos tres meses, proporcionando información valiosa para evaluar el rendimiento financiero.
+
+
+
+# Explicación del desarrollo de los ejercicios 3 a 5:
+
+Para simpleza de los ejercicios, si bien no es una buena práctica, creo la base y dejo las credenciales hardcodeadas.
+
+## Ejercicio 3: Creo la Base de Datos 
+
+En este ejercicio, creo la base de  datos en PostgreSQL usando Docker. Para eso se genera un archvio yml donde creamos el container postgres_db que usa el archivo create_tables.sql para general los esquemas.
+
+### Pasos:
+
+1. **Configurar Docker Compose**:
+
+   ```yaml
+   version: '3.8'
+
+   services:
+     db:
+       build: .
+       container_name: postgres_db
+       environment:
+         POSTGRES_USER: fsantoliquido
+         POSTGRES_PASSWORD: itba1234
+         POSTGRES_DB: airlines
+       ports:
+         - "5432:5432"
+       volumes:
+         - postgres_data:/var/lib/postgresql/data
+         - ./create_tables.sql:/scripts/create_tables.sql
+   volumes:
+     postgres_data:
+   ```
+
+2. **Levantar Docker Compose (corriendo desde la terminal)**:
+
+   ```sh
+   docker-compose up -d
+   ```
+
+3. **Inicializar la Base de Datos (con el archivo bash)**:
+
+   Ejecutar el script `initialize_db.sh`:
+
+   ```sh
+   #!/bin/bash
+
+   # Nombre del contenedor
+   CONTAINER_NAME=postgres_db
+
+   # Nombre de la base de datos, usuario y archivo SQL
+   DB_NAME=airlines
+   DB_USER=fsantoliquido
+   SQL_FILE=create_tables.sql
+
+   # Ejecutar el script SQL dentro del contenedor
+   docker exec -i $CONTAINER_NAME psql -U $DB_USER -d $DB_NAME -f /scripts/$SQL_FILE
+   ```
+
+## Ejercicio 4: Popular la Base de Datos
+
+Acá populamos la base con los datos necesarios. Lo hacemos por batches de 100 para evitar problemas de memoria. Previo a esto se creó un archivo con los inserts de sql que necesitamos para el ejercicio llamado "transformed_inserts.sql". Como es un archivo pesado, no fue pusheado a GitHub. Sin embargo, dejo un archivo llamado "transformed_isnerts_sample.sql" con el mismo formato pero menos rows. 
+
+### Pasos:
+
+1. **Crear el Dockerfile para el contenedor de populate**:
+
+   ```Dockerfile
+   FROM python:3.8-slim
+
+   # Instalar psycopg2
+   RUN pip install psycopg2-binary
+
+   # Crear directorio de trabajo
+   WORKDIR /scripts
+
+   # Copiar el script de Python y el archivo SQL al contenedor
+   COPY populate_db.py /scripts/
+   COPY transformed_inserts.sql /scripts/
+
+   # Ejecutar el script de Python
+   CMD ["python", "/scripts/populate_db.py"]
+   ```
+
+2. **Construir y ejecutar el contenedor `populate`**:
+
+   ```sh
+   docker build -t populate -f Dockerfile.populate .
+   docker run --rm --network itba-cde-cloud-architecture_default populate
+   ```
+
+## Ejercicio 5: Consultas a la Base de Datos
+
+Realizamos cinco consultas SQL que agregan valor al negocio. Primero las testeamos directamente contra la base de datos y luego las pusimos en un script de Python.
+
+### Pasos:
+
+1. **Consultas SQL**:
+   - Rutas más frecuentemente voladas en los últimos tres meses
+   - Tasa de puntualidad de los vuelos
+   - Aeropuertos de origen y destino más populares
+   - Tarifas promedio por vuelo y por clase
+   - Ingresos totales
+
+2. **Crear el Dockerfile para `consultas`**:
+
+   ```Dockerfile
+   FROM python:3.8-slim
+
+   # Instalar psycopg2 y pandas
+   RUN pip install psycopg2-binary pandas
+
+   # Crear directorio de trabajo
+   WORKDIR /scripts
+
+   # Copiar el script de Python al contenedor
+   COPY consultas.py /scripts/
+
+   # Ejecutar el script de Python
+   CMD ["python", "/scripts/consultas.py"]
+   ```
+
+3. **Construir y ejecutar el contenedor `consultas`**:
+
+   ```sh
+   docker build -t consultas -f Dockerfile.consultas .
+   docker run --rm --network itba-cde-cloud-architecture_default consultas
+   ```
