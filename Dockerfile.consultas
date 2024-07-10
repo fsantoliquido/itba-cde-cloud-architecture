@@ -1,0 +1,13 @@
+FROM python:3.8-slim
+
+# Instalar psycopg2 y pandas
+RUN pip install psycopg2-binary pandas
+
+# Crear directorio de trabajo
+WORKDIR /scripts
+
+# Copiar el script de Python al contenedor
+COPY consultas.py /scripts/
+
+# Definir el comando para ejecutar el script de Python
+CMD ["python", "/scripts/consultas.py"]
